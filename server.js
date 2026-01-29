@@ -6,12 +6,11 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 app.use(express.static(path.join(__dirname)));
-app.get('/', (req, res) => res.redirect('/index-itech-disciple.html'));
+app.get('/', (req, res) => res.redirect('/index-vertaling.html'));
 
 const server = app.listen(PORT, () => {
   console.log('Server op http://localhost:' + PORT);
-  console.log('App: http://localhost:' + PORT + '/index-itech-disciple.html');
-  console.log('Kies I-tech of Disciple bij het openen.');
+  console.log('App: http://localhost:' + PORT + '/index-vertaling.html');
 });
 
 const wss = new WebSocketServer({ server });
