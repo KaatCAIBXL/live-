@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I-tech / Disciple</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a20;
+      --text: #e8e6e3;
+      --muted: #8b8685;
+      --accent: #00c896;
+      --accent-dim: #00a67d;
+      --danger: #e85d5d;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .role-selector {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .role-btn {
+      padding: 1rem 2rem;
+      border: 2px solid var(--muted);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .role-btn:hover {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .role-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .app-content {
+      display: none;
+      width: 100%;
+      max-width: 720px;
+    }
+    .app-content.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      width: 100%;
+    }
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .lang-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .lang-row select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+      border-radius: var(--radius);
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .lang-row select:hover, .lang-row select:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .checkbox-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button.primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    button.primary:hover { background: var(--accent-dim); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+    }
+    button.secondary:hover { border-color: var(--text); }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .transcript-box, .translation-box {
+      width: 100%;
+      min-height: 220px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-size: 1.25rem;
+      line-height: 1.6;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .transcript-box .interim, .translation-box .pending { color: var(--muted); }
+    .transcript-box .final, .translation-box .done { color: var(--text); }
+    .status {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .status.error { color: var(--danger); }
+    .status.active { color: var(--accent); }
+    .info {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-width: 720px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Live transcriptie + vertaling</h1>
+  <p class="subtitle">Kies je rol</p>
+
+  <div class="role-selector">
+    <button class="role-btn" data-role="itech">I-tech</button>
+    <button class="role-btn" data-role="disciple">Disciple</button>
+  </div>
+
+  <div id="itech-content" class="app-content">
+    <p class="subtitle">Alleen transcriptie. Jouw input wordt naar Disciple gestuurd.</p>
+    <div class="controls">
+      <div class="lang-row">
+        <label for="itech-langSelect">Invoertaal:</label>
+        <select id="itech-langSelect" aria-label="Taal voor spraakherkenning">
+          <option value="fr-FR" selected>Frans</option>
+          <option value="nl-NL">Nederlands</option>
+          <option value="en-GB">Engels (VK)</option>
+          <option value="en-US">Engels (VS)</option>
+          <option value="de-DE">Duits</option>
+          <option value="es-ES">Spaans</option>
+          <option value="it-IT">Italiaans</option>
+        </select>
+      </div>
+      <button id="itech-btnStart" class="primary">Start luisteren</button>
+      <button id="itech-btnStop" class="secondary" disabled>Stop</button>
+    </div>
+    <div class="transcript-box" aria-live="polite">
+      <span id="itech-output"></span>
+      <span id="itech-interim" class="interim"></span>
+    </div>
+    <p class="status" id="itech-status">Verbonden met server. Klik op "Start luisteren" en praat.</p>
+  </div>
+
+  <div id="disciple-content" class="app-content">
+    <p class="subtitle">Je ontvangt alleen de vertaling van de transcriptie van I-tech.</p>
+    <div class="controls">
+      <div class="lang-row">
+        <label for="disciple-targetSelect">Vertaling naar:</label>
+        <select id="disciple-targetSelect" aria-label="Doeltaal voor vertaling">
+          <option value="nl">Nederlands</option>
+          <option value="en">Engels</option>
+          <option value="fi">Fins</option>
+          <option value="es">Spaans</option>
+          <option value="pt">Portugees</option>
+        </select>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="disciple-readAloud" aria-label="Vertaling voorlezen">
+        <label for="disciple-readAloud">Vertaling voorlezen</label>
+      </div>
+    </div>
+    <div class="translation-box" aria-live="polite">
+      <span id="disciple-output"></span>
+      <span id="disciple-pending" class="pending"></span>
+    </div>
+    <p class="status" id="disciple-status">Verbinden met server…</p>
+  </div>
+
+  <div class="info" style="display: none;" id="info-box">
+    <strong id="info-text"></strong>
+  </div>
+
+  <script>
+    (function () {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let currentRole = null;
+      let recognition = null;
+      let correcties = {};
+      let ws = null;
+
+      const roleBtns = document.querySelectorAll('.role-btn');
+      const itechContent = document.getElementById('itech-content');
+      const discipleContent = document.getElementById('disciple-content');
+      const infoBox = document.getElementById('info-box');
+      const infoText = document.getElementById('info-text');
+
+      const itechOutputEl = document.getElementById('itech-output');
+      const itechInterimEl = document.getElementById('itech-interim');
+      const itechStatusEl = document.getElementById('itech-status');
+      const itechBtnStart = document.getElementById('itech-btnStart');
+      const itechBtnStop = document.getElementById('itech-btnStop');
+      const itechLangSelect = document.getElementById('itech-langSelect');
+
+      const discipleOutputEl = document.getElementById('disciple-output');
+      const disciplePendingEl = document.getElementById('disciple-pending');
+      const discipleStatusEl = document.getElementById('disciple-status');
+      const discipleTargetSelect = document.getElementById('disciple-targetSelect');
+      const discipleReadAloud = document.getElementById('disciple-readAloud');
+
+      function getWsUrl() {
+        const p = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return p + '//' + location.host;
+      }
+
+      function selectRole(role) {
+        currentRole = role;
+        roleBtns.forEach(btn => {
+          btn.classList.toggle('selected', btn.dataset.role === role);
+        });
+        itechContent.classList.toggle('active', role === 'itech');
+        discipleContent.classList.toggle('active', role === 'disciple');
+        infoBox.style.display = 'block';
+        if (role === 'itech') {
+          infoText.textContent = 'Jij bent I-tech: alleen transcriptie. Disciple ontvangt jouw transcriptie en ziet de vertaling.';
+          connectWs();
+        } else {
+          infoText.textContent = 'Jij bent Disciple: je ziet alleen de vertaling van wat I-tech transcribeert. Kies de doeltaal en eventueel voorlezen.';
+          connectWs();
+        }
+      }
+
+      function connectWs() {
+        if (ws && ws.readyState === 1) return;
+        try {
+          ws = new WebSocket(getWsUrl());
+          ws.onopen = () => {
+            if (currentRole === 'itech') {
+              setItechStatus('Verbonden. Klik op "Start luisteren" en praat.', false, true);
+            } else {
+              setDiscipleStatus('Verbonden. Wacht op transcriptie van I-tech.', false, true);
+            }
+          };
+          ws.onmessage = (e) => {
+            if (currentRole === 'disciple') {
+              try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'transcript') onDiscipleTranscript(msg);
+              } catch (err) {}
+            }
+          };
+          ws.onclose = () => {
+            if (currentRole === 'itech') {
+              setItechStatus('Verbinding verbroken. Wordt opnieuw verbonden…', true);
+            } else {
+              setDiscipleStatus('Verbinding verbroken. Wordt opnieuw verbonden…', true);
+            }
+            setTimeout(connectWs, 2000);
+          };
+          ws.onerror = () => {};
+        } catch (e) {
+          if (currentRole === 'itech') {
+            setItechStatus('Kan niet verbinden met server. Start met npm start.', true);
+          } else {
+            setDiscipleStatus('Kan niet verbinden met server. Start met npm start.', true);
+          }
+        }
+      }
+
+      function sendTranscript(text, lang) {
+        if (!text.trim()) return;
+        if (ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: 'transcript', text: text.trim(), lang: lang }));
+        }
+      }
+
+      function sourceLangCode() {
+        const v = itechLangSelect.value;
+        return v ? v.split('-')[0] : 'fr';
+      }
+
+      function escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function applyCorrecties(tekst) {
+        if (!tekst.trim()) return tekst;
+        let result = tekst;
+        const keys = Object.keys(correcties).filter(k => k.length > 0).sort((a, b) => b.length - a.length);
+        for (const fout of keys) {
+          const correctie = correcties[fout];
+          if (correctie == null) continue;
+          const re = new RegExp(escapeRegex(fout), 'gi');
+          result = result.replace(re, correctie);
+        }
+        return result;
+      }
+
+      async function loadCorrecties() {
+        try {
+          const res = await fetch('correcties.json');
+          if (!res.ok) throw new Error(res.statusText);
+          correcties = await res.json();
+          if (typeof correcties !== 'object' || correcties === null) correcties = {};
+          return true;
+        } catch (e) {
+          console.warn('Correcties niet geladen:', e);
+          correcties = {};
+          return false;
+        }
+      }
+
+      function setItechStatus(msg, isError = false, isActive = false) {
+        itechStatusEl.textContent = msg;
+        itechStatusEl.classList.toggle('error', isError);
+        itechStatusEl.classList.toggle('active', isActive);
+      }
+
+      function setDiscipleStatus(msg, isError = false, isActive = false) {
+        discipleStatusEl.textContent = msg;
+        discipleStatusEl.classList.toggle('error', isError);
+        discipleStatusEl.classList.toggle('active', isActive);
+      }
+
+      function targetLangLocale() {
+        const m = { nl: 'nl-NL', en: 'en-US', fi: 'fi-FI', es: 'es-ES', pt: 'pt-PT' };
+        return m[discipleTargetSelect.value] || 'nl-NL';
+      }
+
+      function speakTranslation(text) {
+        if (!text.trim() || !discipleReadAloud.checked) return;
+        if (!window.speechSynthesis) return;
+        const u = new SpeechSynthesisUtterance(text.trim());
+        u.lang = targetLangLocale();
+        u.rate = 0.95;
+        window.speechSynthesis.speak(u);
+      }
+
+      async function translate(text, fromLang, toLang) {
+        if (!text.trim()) return '';
+        const q = encodeURIComponent(text.trim());
+        const langpair = fromLang + '|' + toLang;
+        const url = 'https://api.mymemory.translated.net/get?q=' + q + '&langpair=' + langpair;
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.responseStatus === 200 && data.responseData && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+          }
+          return text;
+        } catch (e) {
+          console.warn('Vertaling mislukt:', e);
+          return text;
+        }
+      }
+
+      function onDiscipleTranscript(msg) {
+        const text = msg.text;
+        const fromLang = msg.lang || 'fr';
+        const toLang = discipleTargetSelect.value;
+        if (!text) return;
+        disciplePendingEl.textContent = '…';
+        translate(text, fromLang, toLang).then(translated => {
+          disciplePendingEl.textContent = '';
+          discipleOutputEl.textContent += translated + ' ';
+          speakTranslation(translated);
+        }).catch(() => {
+          disciplePendingEl.textContent = '';
+        });
+      }
+
+      function startItechListening() {
+        connectWs();
+        loadCorrecties().then(() => {
+          if (!SpeechRecognition) {
+            setItechStatus('Deze browser ondersteunt geen spraakherkenning. Gebruik Chrome of Edge.', true);
+            return;
+          }
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = itechLangSelect.value;
+          recognition.maxAlternatives = 1;
+
+          recognition.onresult = function (e) {
+            let toAppend = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              const transcript = e.results[i][0].transcript;
+              const corrected = applyCorrecties(transcript);
+              if (e.results[i].isFinal) {
+                toAppend += corrected + ' ';
+                itechInterimEl.textContent = '';
+                const segment = (corrected + ' ').trim();
+                if (segment) sendTranscript(segment, sourceLangCode());
+              } else {
+                itechInterimEl.textContent = corrected;
+              }
+            }
+            if (toAppend) itechOutputEl.textContent += toAppend;
+          };
+
+          recognition.onerror = function (e) {
+            if (e.error === 'not-allowed') {
+              setItechStatus('Microfoon geweigerd. Sta toegang toe en probeer opnieuw.', true);
+            } else {
+              setItechStatus('Fout: ' + (e.error || 'onbekend'), true);
+            }
+          };
+
+          recognition.onend = function () {
+            itechInterimEl.textContent = '';
+            itechBtnStart.disabled = false;
+            itechBtnStop.disabled = true;
+            itechLangSelect.disabled = false;
+            setItechStatus('Luisteren gestopt.');
+          };
+
+          recognition.start();
+          itechOutputEl.textContent = '';
+          itechInterimEl.textContent = '';
+          itechBtnStart.disabled = true;
+          itechBtnStop.disabled = false;
+          itechLangSelect.disabled = true;
+          setItechStatus('Luisteren… Praat nu. Disciple ontvangt de transcriptie.', false, true);
+        });
+      }
+
+      function stopItechListening() {
+        if (recognition) {
+          recognition.stop();
+          recognition = null;
+        }
+      }
+
+      roleBtns.forEach(btn => {
+        btn.addEventListener('click', () => selectRole(btn.dataset.role));
+      });
+
+      itechBtnStart.addEventListener('click', startItechListening);
+      itechBtnStop.addEventListener('click', stopItechListening);
+    })();
+  </script>
+</body>
+</html>

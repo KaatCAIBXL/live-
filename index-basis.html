@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live transcriptie met correcties</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a20;
+      --text: #e8e6e3;
+      --muted: #8b8685;
+      --accent: #00c896;
+      --accent-dim: #00a67d;
+      --danger: #e85d5d;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .lang-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .lang-row select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+      border-radius: var(--radius);
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .lang-row select:hover, .lang-row select:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button.primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    button.primary:hover { background: var(--accent-dim); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+    }
+    button.secondary:hover { border-color: var(--text); }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .transcript-box {
+      width: 100%;
+      max-width: 720px;
+      min-height: 200px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-size: 1.25rem;
+      line-height: 1.6;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .transcript-box .interim {
+      color: var(--muted);
+    }
+    .transcript-box .final { color: var(--text); }
+    .status {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .status.error { color: var(--danger); }
+    .status.active { color: var(--accent); }
+    .info {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-width: 720px;
+    }
+    .info a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>Live transcriptie</h1>
+  <p class="subtitle">Spraak wordt omgezet naar tekst en gecorrigeerd via correcties.json</p>
+
+  <div class="controls">
+    <div class="lang-row">
+      <label for="langSelect">Invoertaal:</label>
+      <select id="langSelect" aria-label="Kies de taal voor spraakherkenning">
+        <option value="fr-FR" selected>Frans</option>
+        <option value="nl-NL">Nederlands</option>
+        <option value="en-GB">Engels (VK)</option>
+        <option value="en-US">Engels (VS)</option>
+        <option value="de-DE">Duits</option>
+        <option value="es-ES">Spaans</option>
+        <option value="it-IT">Italiaans</option>
+      </select>
+    </div>
+    <button id="btnStart" class="primary">Start luisteren</button>
+    <button id="btnStop" class="secondary" disabled>Stop</button>
+  </div>
+
+  <div class="transcript-box" id="transcriptBox" aria-live="polite">
+    <span id="output"></span>
+    <span id="interim" class="interim"></span>
+  </div>
+
+  <p class="status" id="status">Klik op "Start luisteren" en praat. Correcties worden toegepast vanuit correcties.json.</p>
+
+  <div class="info">
+    <strong>Correcties:</strong> Bewerk <code>correcties.json</code> in deze map: elk "fout" → "correctie" wordt tijdens de transcriptie automatisch vervangen. Vernieuw de pagina na het wijzigen van het bestand.
+  </div>
+
+  <script>
+    (function () {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        document.getElementById('status').textContent = 'Deze browser ondersteunt geen spraakherkenning. Gebruik Chrome of Edge.';
+        document.getElementById('status').classList.add('error');
+        return;
+      }
+
+      let recognition = null;
+      let correcties = {};
+      const outputEl = document.getElementById('output');
+      const interimEl = document.getElementById('interim');
+      const statusEl = document.getElementById('status');
+      const btnStart = document.getElementById('btnStart');
+      const btnStop = document.getElementById('btnStop');
+
+      function escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function applyCorrecties(tekst) {
+        if (!tekst.trim()) return tekst;
+        let result = tekst;
+        const keys = Object.keys(correcties).filter(k => k.length > 0).sort((a, b) => b.length - a.length);
+        for (const fout of keys) {
+          const correctie = correcties[fout];
+          if (correctie == null) continue;
+          const re = new RegExp(escapeRegex(fout), 'gi');
+          result = result.replace(re, correctie);
+        }
+        return result;
+      }
+
+      async function loadCorrecties() {
+        try {
+          const res = await fetch('correcties.json');
+          if (!res.ok) throw new Error(res.statusText);
+          correcties = await res.json();
+          if (typeof correcties !== 'object' || correcties === null) correcties = {};
+          return true;
+        } catch (e) {
+          console.warn('Correcties niet geladen:', e);
+          correcties = {};
+          return false;
+        }
+      }
+
+      function setStatus(msg, isError = false, isActive = false) {
+        statusEl.textContent = msg;
+        statusEl.classList.toggle('error', isError);
+        statusEl.classList.toggle('active', isActive);
+      }
+
+      function startListening() {
+        loadCorrecties().then(() => {
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = document.getElementById('langSelect').value;
+          recognition.maxAlternatives = 1;
+
+          recognition.onresult = function (e) {
+            let toAppend = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              const transcript = e.results[i][0].transcript;
+              const corrected = applyCorrecties(transcript);
+              if (e.results[i].isFinal) {
+                toAppend += corrected + ' ';
+                interimEl.textContent = '';
+              } else {
+                interimEl.textContent = corrected;
+              }
+            }
+            if (toAppend) outputEl.textContent += toAppend;
+          };
+
+          recognition.onerror = function (e) {
+            if (e.error === 'not-allowed') {
+              setStatus('Microfoon geweigerd. Sta toegang toe en probeer opnieuw.', true);
+            } else {
+              setStatus('Fout: ' + (e.error || 'onbekend'), true);
+            }
+          };
+
+          recognition.onend = function () {
+            interimEl.textContent = '';
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            document.getElementById('langSelect').disabled = false;
+            setStatus('Luisteren gestopt.');
+          };
+
+          recognition.start();
+          outputEl.textContent = '';
+          interimEl.textContent = '';
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+          document.getElementById('langSelect').disabled = true;
+          setStatus('Luisteren… Praat nu.', false, true);
+        });
+      }
+
+      function stopListening() {
+        if (recognition) {
+          recognition.stop();
+          recognition = null;
+        }
+      }
+
+      btnStart.addEventListener('click', startListening);
+      btnStop.addEventListener('click', stopListening);
+    })();
+  </script>
+</body>
+</html>

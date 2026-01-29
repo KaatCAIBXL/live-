@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live transcriptie + vertaling</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a20;
+      --text: #e8e6e3;
+      --muted: #8b8685;
+      --accent: #00c896;
+      --accent-dim: #00a67d;
+      --danger: #e85d5d;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .lang-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .lang-row select {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+      border-radius: var(--radius);
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .lang-row select:hover, .lang-row select:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .checkbox-row label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button.primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    button.primary:hover { background: var(--accent-dim); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--muted);
+    }
+    button.secondary:hover { border-color: var(--text); }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 700px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .panel-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .transcript-box, .translation-box {
+      min-height: 220px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-size: 1.15rem;
+      line-height: 1.6;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .transcript-box .interim, .translation-box .pending {
+      color: var(--muted);
+    }
+    .transcript-box .final, .translation-box .done { color: var(--text); }
+    .status {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .status.error { color: var(--danger); }
+    .status.active { color: var(--accent); }
+    .info {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      color: var(--muted);
+      max-width: 1000px;
+    }
+    .info a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>Live transcriptie + vertaling</h1>
+  <p class="subtitle">Spraak → transcriptie (links) en vertaling (rechts) via correcties.json</p>
+
+  <div class="controls">
+    <div class="lang-row">
+      <label for="langSelect">Invoertaal:</label>
+      <select id="langSelect" aria-label="Taal voor spraakherkenning">
+        <option value="fr-FR" selected>Frans</option>
+        <option value="nl-NL">Nederlands</option>
+        <option value="en-GB">Engels (VK)</option>
+        <option value="en-US">Engels (VS)</option>
+        <option value="de-DE">Duits</option>
+        <option value="es-ES">Spaans</option>
+        <option value="it-IT">Italiaans</option>
+      </select>
+    </div>
+    <div class="lang-row">
+      <label for="targetSelect">Vertaling naar:</label>
+      <select id="targetSelect" aria-label="Doeltaal voor vertaling">
+        <option value="nl">Nederlands</option>
+        <option value="en">Engels</option>
+        <option value="fi">Fins</option>
+        <option value="es">Spaans</option>
+        <option value="pt">Portugees</option>
+      </select>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="readAloud" aria-label="Vertaling voorlezen">
+      <label for="readAloud">Vertaling voorlezen</label>
+    </div>
+    <button id="btnStart" class="primary">Start luisteren</button>
+    <button id="btnStop" class="secondary" disabled>Stop</button>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <span class="panel-label">Transcriptie</span>
+      <div class="transcript-box" id="transcriptBox" aria-live="polite">
+        <span id="output"></span>
+        <span id="interim" class="interim"></span>
+      </div>
+    </div>
+    <div class="panel">
+      <span class="panel-label">Vertaling</span>
+      <div class="translation-box" id="translationBox" aria-live="polite">
+        <span id="translationOutput"></span>
+        <span id="translationPending" class="pending"></span>
+      </div>
+    </div>
+  </div>
+
+  <p class="status" id="status">Kies invoertaal en doeltaal, klik op "Start luisteren" en praat.</p>
+
+  <div class="info">
+    <strong>Transcriptie</strong> (links) gebruikt <code>correcties.json</code>. <strong>Vertaling</strong> (rechts) gebruikt een gratis vertaal-API (MyMemory). Vernieuw de pagina na het wijzigen van correcties.json.
+  </div>
+
+  <script>
+    (function () {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        document.getElementById('status').textContent = 'Deze browser ondersteunt geen spraakherkenning. Gebruik Chrome of Edge.';
+        document.getElementById('status').classList.add('error');
+        return;
+      }
+
+      let recognition = null;
+      let correcties = {};
+      const outputEl = document.getElementById('output');
+      const interimEl = document.getElementById('interim');
+      const translationOutputEl = document.getElementById('translationOutput');
+      const translationPendingEl = document.getElementById('translationPending');
+      const statusEl = document.getElementById('status');
+      const btnStart = document.getElementById('btnStart');
+      const btnStop = document.getElementById('btnStop');
+      const langSelect = document.getElementById('langSelect');
+      const targetSelect = document.getElementById('targetSelect');
+      const readAloudCheck = document.getElementById('readAloud');
+
+      function targetLangLocale() {
+        const m = { nl: 'nl-NL', en: 'en-US', fi: 'fi-FI', es: 'es-ES', pt: 'pt-PT' };
+        return m[targetSelect.value] || 'nl-NL';
+      }
+
+      function speakTranslation(text) {
+        if (!text.trim() || !readAloudCheck.checked) return;
+        if (!window.speechSynthesis) return;
+        const u = new SpeechSynthesisUtterance(text.trim());
+        u.lang = targetLangLocale();
+        u.rate = 0.95;
+        window.speechSynthesis.speak(u);
+      }
+
+      function sourceLangCode() {
+        const v = langSelect.value;
+        return v ? v.split('-')[0] : 'fr';
+      }
+
+      function escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function applyCorrecties(tekst) {
+        if (!tekst.trim()) return tekst;
+        let result = tekst;
+        const keys = Object.keys(correcties).filter(k => k.length > 0).sort((a, b) => b.length - a.length);
+        for (const fout of keys) {
+          const correctie = correcties[fout];
+          if (correctie == null) continue;
+          const re = new RegExp(escapeRegex(fout), 'gi');
+          result = result.replace(re, correctie);
+        }
+        return result;
+      }
+
+      async function loadCorrecties() {
+        try {
+          const res = await fetch('correcties.json');
+          if (!res.ok) throw new Error(res.statusText);
+          correcties = await res.json();
+          if (typeof correcties !== 'object' || correcties === null) correcties = {};
+          return true;
+        } catch (e) {
+          console.warn('Correcties niet geladen:', e);
+          correcties = {};
+          return false;
+        }
+      }
+
+      async function translate(text, fromLang, toLang) {
+        if (!text.trim()) return '';
+        const q = encodeURIComponent(text.trim());
+        const langpair = fromLang + '|' + toLang;
+        const url = 'https://api.mymemory.translated.net/get?q=' + q + '&langpair=' + langpair;
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.responseStatus === 200 && data.responseData && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+          }
+          return text;
+        } catch (e) {
+          console.warn('Vertaling mislukt:', e);
+          return text;
+        }
+      }
+
+      function setStatus(msg, isError = false, isActive = false) {
+        statusEl.textContent = msg;
+        statusEl.classList.toggle('error', isError);
+        statusEl.classList.toggle('active', isActive);
+      }
+
+      function startListening() {
+        loadCorrecties().then(() => {
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = langSelect.value;
+          recognition.maxAlternatives = 1;
+
+          recognition.onresult = function (e) {
+            let toAppend = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              const transcript = e.results[i][0].transcript;
+              const corrected = applyCorrecties(transcript);
+              if (e.results[i].isFinal) {
+                toAppend += corrected + ' ';
+                interimEl.textContent = '';
+                const segment = (corrected + ' ').trim();
+                if (segment) {
+                  const fromLang = sourceLangCode();
+                  const toLang = targetSelect.value;
+                  translationPendingEl.textContent = '…';
+                  translate(segment, fromLang, toLang).then(translated => {
+                    translationPendingEl.textContent = '';
+                    translationOutputEl.textContent += translated + ' ';
+                    speakTranslation(translated);
+                  }).catch(() => {
+                    translationPendingEl.textContent = '';
+                  });
+                }
+              } else {
+                interimEl.textContent = corrected;
+              }
+            }
+            if (toAppend) outputEl.textContent += toAppend;
+          };
+
+          recognition.onerror = function (e) {
+            if (e.error === 'not-allowed') {
+              setStatus('Microfoon geweigerd. Sta toegang toe en probeer opnieuw.', true);
+            } else {
+              setStatus('Fout: ' + (e.error || 'onbekend'), true);
+            }
+          };
+
+          recognition.onend = function () {
+            interimEl.textContent = '';
+            translationPendingEl.textContent = '';
+            window.speechSynthesis.cancel();
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            langSelect.disabled = false;
+            targetSelect.disabled = false;
+            setStatus('Luisteren gestopt.');
+          };
+
+          recognition.start();
+          outputEl.textContent = '';
+          interimEl.textContent = '';
+          translationOutputEl.textContent = '';
+          translationPendingEl.textContent = '';
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+          langSelect.disabled = true;
+          targetSelect.disabled = true;
+          setStatus('Luisteren… Praat nu.', false, true);
+        });
+      }
+
+      function stopListening() {
+        if (recognition) {
+          recognition.stop();
+          recognition = null;
+        }
+      }
+
+      btnStart.addEventListener('click', startListening);
+      btnStop.addEventListener('click', stopListening);
+    })();
+  </script>
+</body>
+</html>
