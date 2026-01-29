@@ -79,14 +79,20 @@ Voor deze app is **JSON** het meest praktisch.
    - Kan de taal van de vertaling kiezen (Nederlands, Engels, Fins, Spaans, Portugees).
    - Kan kiezen of de vertaling wordt voorgelezen.
 
-**Starten:**
+**Starten (stap voor stap):**
 
-```bash
-npm install
-npm start
-```
+1. **Node.js installeren** (eenmalig)  
+   - Ga naar **https://nodejs.org**  
+   - Download de **LTS**-versie en installeer (Next, Next, Finish).  
+   - Sluit alle terminals/Cursor en open opnieuw.
 
-Daarna open **http://localhost:3000** (of http://localhost:3000/index-itech-disciple.html) en kies **I-tech** of **Disciple**.
+2. **Server starten**  
+   - Dubbelklik in de projectmap op **`start-server.bat`**  
+   - Of open een terminal in deze map en typ: `npm install` en daarna `npm start`.
+
+3. **App openen**  
+   - In je browser: **http://localhost:3000**  
+   - Kies **I-tech** of **Disciple**.
 
 - **I-tech:** klik op "I-tech", kies invoertaal, start luisteren en praat.
 - **Disciple:** klik op "Disciple", kies doeltaal en eventueel voorlezen, wacht op transcriptie.
